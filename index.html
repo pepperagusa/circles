@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Rubik Circle</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #f0ede8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100svh;
+      gap: 24px;
+      font-family: system-ui, sans-serif;
+    }
+    canvas { touch-action: none; display: block; }
+    button {
+      padding: 11px 32px;
+      background: #1e1e1e;
+      color: #fff;
+      border: none;
+      border-radius: 28px;
+      font-size: 15px;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+    }
+    button:hover  { background: #3a3a3a; }
+    button:active { background: #000; }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <button id="scrambleBtn">Scramble</button>
+
+  <script>
+  (() => {
+    const canvas = document.getElementById('c');
+    const ctx    = canvas.getContext('2d');
+    const dpr    = window.devicePixelRatio || 1;
+
+    const L = 600;
+    let displaySize, drawScale;
+
+    function resize() {
+      displaySize = Math.min(window.innerWidth, window.innerHeight, L);
+      drawScale   = (displaySize / L) * dpr;
+      canvas.style.width  = displaySize + 'px';
+      canvas.style.height = displaySize + 'px';
+      canvas.width  = Math.round(displaySize * dpr);
+      canvas.height = Math.round(displaySize * dpr);
+      scheduleRedraw();
+    }
+
+    // ── Geometry ─────────────────────────────────────────────────────────────
+    const SIDE    = 150;
+    const triH    = SIDE * Math.sqrt(3) / 2;
+    const R_IN    = 114;
+    const R_OUT   = 147;
+    const RADII   = [R_IN, R_OUT];
+    const HIT_TOL = 25;
+    const DOT_R   = 9;
+    const ANIM_MS = 180; // all dots in a step take this long, regardless of arc length
+
+    const GROUPS = [
+      { x: 300,          y: 300 - triH * 2 / 3 },
+      { x: 300 - SIDE/2, y: 300 + triH / 3     },
+      { x: 300 + SIDE/2, y: 300 + triH / 3     },
+    ];
+
+    // ── Circle intersections ──────────────────────────────────────────────────
+    function circleIntersections(c1, r1, c2, r2) {
+      const dx = c2.x - c1.x, dy = c2.y - c1.y;
+      const d  = Math.hypot(dx, dy);
+      if (d > r1 + r2 + 1e-9 || d < Math.abs(r1 - r2) - 1e-9) return [];
+      const a  = (r1*r1 - r2*r2 + d*d) / (2*d);
+      const h  = Math.sqrt(Math.max(0, r1*r1 - a*a));
+      const mx = c1.x + a*dx/d, my = c1.y + a*dy/d;
+      return [
+        { x: mx + h*(dy/d), y: my - h*(dx/d) },
+        { x: mx - h*(dy/d), y: my + h*(dx/d) },
+      ];
+    }
+
+    // ── 24 fixed slots at all ring-pair intersections ─────────────────────────
+    const slots     = []; // { x, y, colorIdx }
+    const ringSlots = GROUPS.map(() => RADII.map(() => []));
+    // ringSlots[gi][ri] = [ {si, angle} … ] — 8 entries sorted by angle
+
+    for (const [pairIdx, [gi1, gi2]] of [[0,[0,1]],[1,[0,2]],[2,[1,2]]]) {
+      for (let ri1 = 0; ri1 < 2; ri1++) {
+        for (let ri2 = 0; ri2 < 2; ri2++) {
+          const pts = circleIntersections(GROUPS[gi1], RADII[ri1], GROUPS[gi2], RADII[ri2]);
+          for (let sideIdx = 0; sideIdx < pts.length; sideIdx++) {
+            // sideIdx 0/1 = which side of the petal axis — consistent across all ring combos
+            // so all 4 dots on the same side of a petal share one color
+            const colorIdx = pairIdx * 2 + sideIdx;
+            const pt = pts[sideIdx];
+            const si = slots.length;
+            const a1 = Math.atan2(pt.y - GROUPS[gi1].y, pt.x - GROUPS[gi1].x);
+            const a2 = Math.atan2(pt.y - GROUPS[gi2].y, pt.x - GROUPS[gi2].x);
+            slots.push({ x: pt.x, y: pt.y, colorIdx });
+            ringSlots[gi1][ri1].push({ si, angle: a1 });
+            ringSlots[gi2][ri2].push({ si, angle: a2 });
+          }
+        }
+      }
+    }
+    for (let gi = 0; gi < 3; gi++)
+      for (let ri = 0; ri < 2; ri++)
+        ringSlots[gi][ri].sort((a, b) => a.angle - b.angle);
+
+    // ── Dot colours (6 colors, 4 dots each) ──────────────────────────────────
+    const COLORS   = ['#ffffff','#ffd500','#0051a2','#ff5800','#009b48','#c41e3a'];
+    let slotColors = slots.map(s => COLORS[s.colorIdx]);
+    let displayColors = [...slotColors]; // committed state + any in-flight shift
+
+    // ── Angle helpers ─────────────────────────────────────────────────────────
+    function normDelta(a) {
+      while (a >  Math.PI) a -= 2 * Math.PI;
+      while (a < -Math.PI) a += 2 * Math.PI;
+      return a;
+    }
+
+    function nearestOnRing(gi, ri, angle) {
+      const rs = ringSlots[gi][ri];
+      let best = 0, bd = Infinity;
+      for (let i = 0; i < rs.length; i++) {
+        const d = Math.abs(normDelta(angle - rs[i].angle));
+        if (d < bd) { bd = d; best = i; }
+      }
+      return best;
+    }
+
+    function computeShift(gi, ri, delta) {
+      const rs = ringSlots[gi][ri], n = rs.length;
+      const votes = new Array(n).fill(0);
+      for (let i = 0; i < n; i++) {
+        const j = nearestOnRing(gi, ri, rs[i].angle + delta);
+        votes[(j - i + n) % n]++;
+      }
+      const rawShift = votes.indexOf(Math.max(...votes));
+      // Snap in pairs: round to nearest multiple of 2
+      const signed   = rawShift > n / 2 ? rawShift - n : rawShift;
+      const rounded  = Math.round(signed / 2) * 2;
+      return ((rounded % n) + n) % n;
+    }
+
+    function applyShift(gi, ri, shift, src) {
+      const rs  = ringSlots[gi][ri], n = rs.length;
+      const out = [...src];
+      const col = rs.map(e => src[e.si]);
+      for (let i = 0; i < n; i++) out[rs[(i + shift) % n].si] = col[i];
+      return out;
+    }
+
+    // ── Hit testing ───────────────────────────────────────────────────────────
+    function toLogical(e) {
+      const rect = canvas.getBoundingClientRect();
+      const s    = e.touches ? e.touches[0] : e;
+      return { x: (s.clientX - rect.left) * L / displaySize,
+               y: (s.clientY - rect.top)  * L / displaySize };
+    }
+
+    function angleTo(g, pos) { return Math.atan2(pos.y - g.y, pos.x - g.x); }
+
+    function hitTest(pos) {
+      let best = null, bd = HIT_TOL;
+      for (let gi = 0; gi < GROUPS.length; gi++) {
+        const g = GROUPS[gi], dist = Math.hypot(pos.x - g.x, pos.y - g.y);
+        for (let ri = 0; ri < RADII.length; ri++) {
+          const d = Math.abs(dist - RADII[ri]);
+          if (d < bd) { bd = d; best = { gi, ri }; }
+        }
+      }
+      return best;
+    }
+
+    // ── Animation ─────────────────────────────────────────────────────────────
+    // When a ring's dots shift by one step, each dot animates along its arc.
+    // All 8 dots take the same wall-clock time (ANIM_MS) so faster dots =
+    // longer arcs = higher angular speed.
+    let anim = null;
+    // anim = { gi, ri, slotIndices: Set<si>, dots: [{fromAngle, delta, color}],
+    //          startTime, duration }
+
+    function startAnimation(gi, ri, rawShiftDiff) {
+      const rs = ringSlots[gi][ri], n = rs.length;
+      // Normalise to unsigned [0, n) and pick the signed direction
+      const sd     = ((rawShiftDiff % n) + n) % n;
+      const signed = sd > n / 2 ? sd - n : sd; // shortest-path sign
+
+      // Capture dot colours BEFORE displayColors is updated to the new shift
+      const anim_dots = rs.map((entry, i) => {
+        const fromAngle = entry.angle;
+        const toAngle   = rs[(i + sd) % n].angle;
+        let delta = toAngle - fromAngle;
+        // Force delta to point in the same direction as signed
+        if (signed > 0 && delta < -1e-9) delta += 2 * Math.PI;
+        if (signed < 0 && delta >  1e-9) delta -= 2 * Math.PI;
+        return { fromAngle, delta, color: displayColors[entry.si] };
+      });
+
+      anim = {
+        gi, ri,
+        slotIndices: new Set(rs.map(e => e.si)),
+        dots:        anim_dots,
+        startTime:   performance.now(),
+        duration:    ANIM_MS,
+      };
+    }
+
+    function easeInOut(t) { return t * t * (3 - 2 * t); }
+
+    // ── Render loop ───────────────────────────────────────────────────────────
+    let rafId = null;
+
+    function scheduleRedraw() {
+      if (rafId === null) rafId = requestAnimationFrame(frame);
+    }
+
+    function frame(now) {
+      rafId = null;
+      draw(now);
+      // Keep looping while an animation is in flight
+      if (anim && now < anim.startTime + anim.duration) scheduleRedraw();
+    }
+
+    function drawDot(x, y, color) {
+      ctx.beginPath();
+      ctx.arc(x, y, DOT_R * drawScale, 0, Math.PI * 2);
+      ctx.fillStyle   = color;
+      ctx.fill();
+      ctx.strokeStyle = '#111';
+      ctx.lineWidth   = 1.5 * drawScale;
+      ctx.stroke();
+    }
+
+    function draw(now = performance.now()) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Rings
+      for (let gi = 0; gi < GROUPS.length; gi++) {
+        const g = GROUPS[gi];
+        for (let ri = 0; ri < RADII.length; ri++) {
+          ctx.beginPath();
+          ctx.arc(g.x * drawScale, g.y * drawScale, RADII[ri] * drawScale, 0, Math.PI * 2);
+          ctx.strokeStyle = (drag?.gi === gi && drag?.ri === ri) ? '#555' : '#1a1a1a';
+          ctx.lineWidth   = 3.5 * drawScale;
+          ctx.stroke();
+        }
+      }
+
+      // Skip static draw for any slot whose dot is currently mid-animation
+      const animSlots = anim?.slotIndices ?? new Set();
+
+      // Static dots (at their fixed world positions)
+      for (let si = 0; si < slots.length; si++) {
+        if (animSlots.has(si)) continue;
+        const s = slots[si];
+        drawDot(s.x * drawScale, s.y * drawScale, displayColors[si]);
+      }
+
+      // Animated dots (arc-interpolated along their ring)
+      if (anim) {
+        const elapsed = now - anim.startTime;
+        const t = easeInOut(Math.min(1, elapsed / anim.duration));
+        const g = GROUPS[anim.gi];
+        const r = RADII[anim.ri];
+
+        for (const dot of anim.dots) {
+          const angle = dot.fromAngle + t * dot.delta;
+          drawDot(
+            (g.x + r * Math.cos(angle)) * drawScale,
+            (g.y + r * Math.sin(angle)) * drawScale,
+            dot.color
+          );
+        }
+
+        if (elapsed >= anim.duration) anim = null;
+      }
+    }
+
+    // ── Interaction ───────────────────────────────────────────────────────────
+    let drag = null;
+    // { gi, ri, lastAngle, totalDelta, startColors, lastShift }
+
+    function onStart(e) {
+      e.preventDefault();
+      const pos = toLogical(e);
+      const hit = hitTest(pos);
+      if (!hit) return;
+      anim = null; // cancel any in-flight animation on new grab
+      const { gi, ri } = hit;
+      drag = { gi, ri,
+               lastAngle:   angleTo(GROUPS[gi], pos),
+               totalDelta:  0,
+               startColors: [...slotColors],
+               lastShift:   0 };
+      canvas.style.cursor = 'grabbing';
+      scheduleRedraw();
+    }
+
+    function onMove(e) {
+      e.preventDefault();
+      const pos = toLogical(e);
+      if (!drag) {
+        canvas.style.cursor = hitTest(pos) ? 'grab' : 'default';
+        return;
+      }
+      const newAngle    = angleTo(GROUPS[drag.gi], pos);
+      drag.totalDelta  += normDelta(newAngle - drag.lastAngle);
+      drag.lastAngle    = newAngle;
+
+      const newShift = computeShift(drag.gi, drag.ri, drag.totalDelta);
+      if (newShift !== drag.lastShift) {
+        // startAnimation reads displayColors BEFORE the update — correct from-colours
+        startAnimation(drag.gi, drag.ri, newShift - drag.lastShift);
+        drag.lastShift = newShift;
+        displayColors  = applyShift(drag.gi, drag.ri, newShift, drag.startColors);
+      }
+      scheduleRedraw();
+    }
+
+    function onEnd() {
+      if (!drag) return;
+      slotColors          = [...displayColors];
+      drag                = null;
+      canvas.style.cursor = 'default';
+      scheduleRedraw();
+    }
+
+    canvas.addEventListener('mousedown',   onStart);
+    canvas.addEventListener('mousemove',   onMove);
+    window.addEventListener('mouseup',     onEnd);
+    canvas.addEventListener('touchstart',  onStart, { passive: false });
+    canvas.addEventListener('touchmove',   onMove,  { passive: false });
+    canvas.addEventListener('touchend',    onEnd);
+    canvas.addEventListener('touchcancel', onEnd);
+
+    // ── Scramble ──────────────────────────────────────────────────────────────
+    document.getElementById('scrambleBtn').addEventListener('click', () => {
+      anim = null;
+      for (let t = 0; t < 30; t++) {
+        const gi = Math.floor(Math.random() * 3);
+        const ri = Math.floor(Math.random() * 2);
+        const n  = ringSlots[gi][ri].length;
+        slotColors = applyShift(gi, ri, 1 + Math.floor(Math.random() * (n - 1)), slotColors);
+      }
+      displayColors = [...slotColors];
+      scheduleRedraw();
+    });
+
+    window.addEventListener('resize', resize);
+    resize();
+  })();
+  </script>
+</body>
+</html>
