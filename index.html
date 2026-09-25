@@ -43,8 +43,8 @@
     // ── Geometry ─────────────────────────────────────────────────────────────
     const SIDE    = 150;
     const triH    = SIDE * Math.sqrt(3) / 2;
-    const R_IN    = 114;
-    const R_OUT   = 147;
+    const R_IN    = 134;
+    const R_OUT   = 175;
     const RADII   = [R_IN, R_OUT];
     const HIT_TOL = 25;
     const DOT_R   = 9;
@@ -55,10 +55,6 @@
       { x: 300 - SIDE/2, y: 300 + triH / 3     },
       { x: 300 + SIDE/2, y: 300 + triH / 3     },
     ];
-
-    // Outward angle for each group (pointing away from triangle centre at 300,300)
-    const GROUP_OUTWARD  = GROUPS.map(g => Math.atan2(g.y - 300, g.x - 300));
-    const HANDLE_HALF_ARC = Math.PI / 6; // ±30° → 1/6 circle total
 
     // ── Circle intersections ──────────────────────────────────────────────────
     function circleIntersections(c1, r1, c2, r2) {
@@ -159,11 +155,7 @@
     function hitTest(pos) {
       let best = null, bd = HIT_TOL;
       for (let gi = 0; gi < GROUPS.length; gi++) {
-        const g = GROUPS[gi];
-        const dist       = Math.hypot(pos.x - g.x, pos.y - g.y);
-        const touchAngle = Math.atan2(pos.y - g.y, pos.x - g.x);
-        // Only respond inside the handle arc
-        if (Math.abs(normDelta(touchAngle - GROUP_OUTWARD[gi])) > HANDLE_HALF_ARC) continue;
+        const g = GROUPS[gi], dist = Math.hypot(pos.x - g.x, pos.y - g.y);
         for (let ri = 0; ri < RADII.length; ri++) {
           const d = Math.abs(dist - RADII[ri]);
           if (d < bd) { bd = d; best = { gi, ri }; }
@@ -176,8 +168,7 @@
     // When a ring's dots shift by one step, each dot animates along its arc.
     // All 8 dots take the same wall-clock time (ANIM_MS) so faster dots =
     // longer arcs = higher angular speed.
-    let anim     = null;
-    let iconSnap = {}; // `${gi}-${ri}` → { from, startTime, duration }
+    let anim = null;
     // anim = { gi, ri, slotIndices: Set<si>, dots: [{fromAngle, delta, color}],
     //          startTime, duration }
 
@@ -209,54 +200,6 @@
 
     function easeInOut(t) { return t * t * (3 - 2 * t); }
 
-    // Returns the current icon angle for ring (gi, ri); cleans up finished snaps
-    function iconAngleFor(gi, ri, now) {
-      const base = GROUP_OUTWARD[gi];
-      // While dragging (and ring hasn't moved yet), track pointer within pill bounds
-      if (drag?.gi === gi && drag?.ri === ri && !drag.hasMoved) {
-        const lim = HANDLE_HALF_ARC * R_IN / RADII[ri] * 0.82;
-        return base + Math.max(-lim, Math.min(lim, drag.totalDelta));
-      }
-      const key  = `${gi}-${ri}`;
-      const snap = iconSnap[key];
-      if (snap) {
-        const t = Math.min(1, (now - snap.startTime) / snap.duration);
-        if (t >= 1) { delete iconSnap[key]; return base; }
-        return base + snap.from * (1 - t * t * (3 - 2 * t)); // ease-in-out back to 0
-      }
-      return base;
-    }
-
-    function drawGripIcon(g, radius, angle, isActive, ds) {
-      const px = (g.x + radius * Math.cos(angle)) * ds;
-      const py = (g.y + radius * Math.sin(angle)) * ds;
-      ctx.save();
-      ctx.translate(px, py);
-      ctx.rotate(angle + Math.PI / 2); // align long axis with ring tangent
-
-      // Small black pill background
-      ctx.beginPath();
-      ctx.moveTo(0, -5 * ds);
-      ctx.lineTo(0,  5 * ds);
-      ctx.strokeStyle = '#1a1a1a';
-      ctx.lineWidth   = 22 * ds;
-      ctx.lineCap     = 'round';
-      ctx.stroke();
-      ctx.lineCap     = 'butt';
-
-      // 6-dot grid (fixed size, independent of pill)
-      const sp = 6.0 * ds;
-      for (let row = 0; row < 3; row++) {
-        for (let col = 0; col < 2; col++) {
-          ctx.beginPath();
-          ctx.arc((col - 0.5) * sp, (row - 1) * sp, 1.5 * ds, 0, Math.PI * 2);
-          ctx.fillStyle = '#fff';
-          ctx.fill();
-        }
-      }
-      ctx.restore();
-    }
-
     // ── Render loop ───────────────────────────────────────────────────────────
     let rafId = null;
 
@@ -267,9 +210,7 @@
     function frame(now) {
       rafId = null;
       draw(now);
-      const hasAnim     = anim && now < anim.startTime + anim.duration;
-      const hasIconSnap = Object.keys(iconSnap).length > 0;
-      if (hasAnim || hasIconSnap) scheduleRedraw();
+      if (anim && now < anim.startTime + anim.duration) scheduleRedraw();
     }
 
     function drawDot(x, y, color) {
@@ -285,28 +226,15 @@
     function draw(now = performance.now()) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Rings + drag handles
+      // Rings
       for (let gi = 0; gi < GROUPS.length; gi++) {
         const g = GROUPS[gi];
         for (let ri = 0; ri < RADII.length; ri++) {
-          const ds = drawScale;
-          const cx = g.x * ds, cy = g.y * ds, r = RADII[ri] * ds;
-
-          // Full ring (thin baseline)
           ctx.beginPath();
-          ctx.arc(cx, cy, r, 0, Math.PI * 2);
+          ctx.arc(g.x * drawScale, g.y * drawScale, RADII[ri] * drawScale, 0, Math.PI * 2);
           ctx.strokeStyle = '#1a1a1a';
-          ctx.lineWidth   = 3.5 * ds;
-          ctx.lineCap     = 'butt';
+          ctx.lineWidth   = 3.5 * drawScale;
           ctx.stroke();
-
-          // Compute handle arc (kept for hit-testing; guide is invisible)
-          const outA    = GROUP_OUTWARD[gi];
-          const halfArc = HANDLE_HALF_ARC * R_IN / RADII[ri];
-          const isActive = drag?.gi === gi && drag?.ri === ri;
-
-          // 6-dot grip icon in its own small pill — moves with drag, snaps back on release
-          drawGripIcon(g, RADII[ri], iconAngleFor(gi, ri, now), isActive, ds);
         }
       }
 
@@ -347,17 +275,27 @@
     function onStart(e) {
       e.preventDefault();
       const pos = toLogical(e);
-      const hit = hitTest(pos);
-      if (!hit) return;
+      // Collect every ring within HIT_TOL — may be >1 at intersection dots
+      const candidates = [];
+      for (let gi = 0; gi < GROUPS.length; gi++) {
+        const g = GROUPS[gi], dist = Math.hypot(pos.x - g.x, pos.y - g.y);
+        for (let ri = 0; ri < RADII.length; ri++) {
+          if (Math.abs(dist - RADII[ri]) < HIT_TOL) candidates.push({ gi, ri });
+        }
+      }
+      if (!candidates.length) return;
       anim = null;
-      delete iconSnap[`${hit.gi}-${hit.ri}`]; // cancel any snap-back in progress
-      const { gi, ri } = hit;
-      drag = { gi, ri,
-               lastAngle:   angleTo(GROUPS[gi], pos),
-               totalDelta:  0,
-               startColors: [...slotColors],
-               lastShift:   0,
-               hasMoved:    false };
+      if (candidates.length === 1) {
+        const { gi, ri } = candidates[0];
+        drag = { gi, ri, candidates: null,
+                 startPos: pos, lastAngle: angleTo(GROUPS[gi], pos),
+                 totalDelta: 0, startColors: [...slotColors], lastShift: 0, hasMoved: false };
+      } else {
+        // Ambiguous — defer ring selection until drag direction is clear
+        drag = { gi: null, ri: null, candidates,
+                 startPos: pos, lastAngle: null,
+                 totalDelta: 0, startColors: [...slotColors], lastShift: 0, hasMoved: false };
+      }
       canvas.style.cursor = 'grabbing';
       scheduleRedraw();
     }
@@ -369,14 +307,26 @@
         canvas.style.cursor = hitTest(pos) ? 'grab' : 'default';
         return;
       }
-      const newAngle = angleTo(GROUPS[drag.gi], pos);
-      // Stop tracking if the pointer has strayed too far from the ring
-      const dist = Math.hypot(pos.x - GROUPS[drag.gi].x, pos.y - GROUPS[drag.gi].y);
-      if (dist < R_IN - 60 || dist > R_OUT + 80) {
-        drag.lastAngle = newAngle; // keep reference fresh so re-entry is smooth
-        scheduleRedraw();
-        return;
+
+      // Resolve ambiguous ring using initial drag direction
+      if (drag.gi === null) {
+        const dx = pos.x - drag.startPos.x, dy = pos.y - drag.startPos.y;
+        if (Math.hypot(dx, dy) < 4) { scheduleRedraw(); return; } // wait for clearer intent
+        const dragAngle = Math.atan2(dy, dx);
+        let best = drag.candidates[0], bestScore = -Infinity;
+        for (const c of drag.candidates) {
+          // Score = tangential alignment: |sin(dragAngle - radialAngle)|
+          const radial = Math.atan2(drag.startPos.y - GROUPS[c.gi].y,
+                                    drag.startPos.x - GROUPS[c.gi].x);
+          const score = Math.abs(Math.sin(dragAngle - radial));
+          if (score > bestScore) { bestScore = score; best = c; }
+        }
+        drag.gi        = best.gi;
+        drag.ri        = best.ri;
+        drag.lastAngle = angleTo(GROUPS[drag.gi], drag.startPos);
       }
+
+      const newAngle   = angleTo(GROUPS[drag.gi], pos);
       drag.totalDelta += normDelta(newAngle - drag.lastAngle);
       drag.lastAngle   = newAngle;
 
@@ -388,10 +338,6 @@
           drag.lastShift = newShift;
           displayColors  = applyShift(drag.gi, drag.ri, newShift, drag.startColors);
           drag.hasMoved  = true;
-          // Snap icon back immediately now that the ring has moved
-          const lim  = HANDLE_HALF_ARC * R_IN / RADII[drag.ri] * 0.82;
-          const from = Math.max(-lim, Math.min(lim, drag.totalDelta));
-          iconSnap[`${drag.gi}-${drag.ri}`] = { from, startTime: performance.now(), duration: 220 };
         }
       }
       scheduleRedraw();
@@ -399,15 +345,7 @@
 
     function onEnd() {
       if (!drag) return;
-      slotColors = [...displayColors];
-      // Snap icon back — only if the ring never moved (move handler already snapped it otherwise)
-      if (!drag.hasMoved) {
-        const lim    = HANDLE_HALF_ARC * R_IN / RADII[drag.ri] * 0.82;
-        const offset = Math.max(-lim, Math.min(lim, drag.totalDelta));
-        if (Math.abs(offset) > 0.005) {
-          iconSnap[`${drag.gi}-${drag.ri}`] = { from: offset, startTime: performance.now(), duration: 320 };
-        }
-      }
+      slotColors          = [...displayColors];
       drag                = null;
       canvas.style.cursor = 'default';
       scheduleRedraw();
