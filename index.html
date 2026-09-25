@@ -233,11 +233,23 @@
       ctx.save();
       ctx.translate(px, py);
       ctx.rotate(angle + Math.PI / 2); // align long axis with ring tangent
-      const sp = 4.8 * ds;
+
+      // Small black pill background
+      ctx.beginPath();
+      ctx.moveTo(0, -5 * ds);
+      ctx.lineTo(0,  5 * ds);
+      ctx.strokeStyle = '#1a1a1a';
+      ctx.lineWidth   = 22 * ds;
+      ctx.lineCap     = 'round';
+      ctx.stroke();
+      ctx.lineCap     = 'butt';
+
+      // 6-dot grid (fixed size, independent of pill)
+      const sp = 6.0 * ds;
       for (let row = 0; row < 3; row++) {
         for (let col = 0; col < 2; col++) {
           ctx.beginPath();
-          ctx.arc((col - 0.5) * sp, (row - 1) * sp, 2.1 * ds, 0, Math.PI * 2);
+          ctx.arc((col - 0.5) * sp, (row - 1) * sp, 1.5 * ds, 0, Math.PI * 2);
           ctx.fillStyle = '#fff';
           ctx.fill();
         }
@@ -288,40 +300,12 @@
           ctx.lineCap     = 'butt';
           ctx.stroke();
 
-          // Pill-shaped handle — same arc LENGTH for inner and outer rings
-          const outA      = GROUP_OUTWARD[gi];
-          const halfArc   = HANDLE_HALF_ARC * R_IN / RADII[ri];
-          const isActive  = drag?.gi === gi && drag?.ri === ri;
-          ctx.beginPath();
-          ctx.arc(cx, cy, r, outA - halfArc, outA + halfArc);
-          ctx.strokeStyle = isActive ? '#AAA' : '#BBB';
-          ctx.lineWidth   = 22 * ds;
-          ctx.lineCap     = 'round';
-          ctx.stroke();
-          ctx.lineCap     = 'butt';
+          // Compute handle arc (kept for hit-testing; guide is invisible)
+          const outA    = GROUP_OUTWARD[gi];
+          const halfArc = HANDLE_HALF_ARC * R_IN / RADII[ri];
+          const isActive = drag?.gi === gi && drag?.ri === ri;
 
-          // Carets at each end of the pill
-          const arm = 5 * ds, spread = 2.8 * ds;
-          for (const [endAngle, dir] of [[outA + halfArc, 1], [outA - halfArc, -1]]) {
-            const px = (g.x + RADII[ri] * Math.cos(endAngle)) * ds;
-            const py = (g.y + RADII[ri] * Math.sin(endAngle)) * ds;
-            const pointDir = endAngle + Math.PI / 2 * dir; // tangent, outward from pill
-            ctx.save();
-            ctx.translate(px, py);
-            ctx.rotate(pointDir);
-            ctx.beginPath();
-            ctx.moveTo(-arm, -spread);
-            ctx.lineTo(0, 0);
-            ctx.lineTo(-arm, spread);
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth   = 1.0 * ds;
-            ctx.lineCap     = 'round';
-            ctx.lineJoin    = 'round';
-            ctx.stroke();
-            ctx.restore();
-          }
-
-          // 6-dot grip icon — moves with drag, snaps back on release
+          // 6-dot grip icon in its own small pill — moves with drag, snaps back on release
           drawGripIcon(g, RADII[ri], iconAngleFor(gi, ri, now), isActive, ds);
         }
       }
