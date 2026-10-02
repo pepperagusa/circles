@@ -198,7 +198,7 @@
     const $ = id => document.getElementById(id);
 
     // ── Geometry (logical units = the board's SVG viewBox) ──────────────────
-    const VB      = { x: 80, y: 117, w: 1068, h: 1030 }; // padded so the ring halo isn't clipped
+    const VB      = { x: 100, y: 137, w: 1028, h: 990 };
     const SIDE    = 300;
     const triH    = SIDE * Math.sqrt(3) / 2;
     const RADII   = [267, 349];
@@ -437,29 +437,11 @@
       ctx.stroke();
     }
 
-    function activeRing() {
-      if (drag && drag.gi !== null) return drag;
-      if (phase === 'scrambling')   return scrambleRing;
-      return null;
-    }
-
     function draw(now = performance.now()) {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const s = canvas.width / VB.w;
       ctx.setTransform(s, 0, 0, s, -VB.x * s, -VB.y * s);
-
-      const active = activeRing();
-
-      // Soft halo under the ring being turned (drag or scramble)
-      if (active) {
-        const g = GROUPS[active.gi];
-        ctx.beginPath();
-        ctx.arc(g.x, g.y, RADII[active.ri], 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(28, 27, 26, 0.08)';
-        ctx.lineWidth   = 44;
-        ctx.stroke();
-      }
 
       // Rings
       for (let gi = 0; gi < GROUPS.length; gi++) {
@@ -468,7 +450,7 @@
           ctx.beginPath();
           ctx.arc(g.x, g.y, RADII[ri], 0, Math.PI * 2);
           ctx.strokeStyle = INK;
-          ctx.lineWidth   = active && active.gi === gi && active.ri === ri ? 11 : 7;
+          ctx.lineWidth   = 7;
           ctx.stroke();
         }
       }
@@ -503,7 +485,6 @@
     let startColors   = null;   // position right after the scramble (for Restart)
     let history       = [];     // [{gi, ri, shift}]
     let scrambleTimer = null;
-    let scrambleRing  = null;
 
     let timerStart = null, elapsedMs = 0, timerId = null;
 
@@ -566,7 +547,6 @@
         do { r = Math.floor(Math.random() * 6); } while (r === last); // never the same ring twice in a row
         last = r;
         const gi = Math.floor(r / 2), ri = r % 2;
-        scrambleRing = { gi, ri };
         turn(gi, ri, Math.random() < 0.5 ? 2 : -2);
         count++;
         setHint(`Scrambling… ${Math.min(count, SCRAMBLE_MOVES)} / ${SCRAMBLE_MOVES}`);
@@ -576,7 +556,6 @@
         } else {
           scrambleTimer = setTimeout(() => {
             phase        = 'play';
-            scrambleRing = null;
             startColors  = [...slotColors];
             setHint('Drag along any ring to turn it.');
             updateUI();
