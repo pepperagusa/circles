@@ -310,7 +310,7 @@
 
     // ── Dot colours (6 colors, 4 dots each) ──────────────────────────────────
     const INK      = '#1C1B1A';
-    const COLORS   = ['#FFFFFF','#F4D348','#2350A0','#EB6A2C','#3F9B55','#B9323F'];
+    const COLORS   = ['#FFFFFF','#F4D348','#2350A0','#3F9B55','#EB6A2C','#B9323F'];
     const SOLVED   = slots.map(s => COLORS[s.colorIdx]);
     const CLUSTERS = COLORS.map((_, c) => slots.flatMap((s, si) => s.colorIdx === c ? [si] : []));
 
