@@ -211,7 +211,8 @@
     const ANIM_MS = 180; // all dots in a step take this long, regardless of arc length
 
     const SCRAMBLE_MOVES = 12;
-    const SCRAMBLE_MS    = 500;
+    const SCRAMBLE_MS    = 250; // between scramble turns
+    const SCRAMBLE_START = 500; // solved board shown before the first turn
     const SOLVED_DELAY   = 700;
 
     // ── Daily puzzle ──────────────────────────────────────────────────────────
@@ -650,7 +651,7 @@
           }, ANIM_MS);
         }
       };
-      scrambleTimer = setTimeout(step, SCRAMBLE_MS);
+      scrambleTimer = setTimeout(step, SCRAMBLE_START);
     }
 
     function recordMove(gi, ri, shift) {
