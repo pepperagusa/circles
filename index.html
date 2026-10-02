@@ -440,7 +440,7 @@
     function activeRing() {
       if (drag && drag.gi !== null) return drag;
       if (phase === 'scrambling')   return scrambleRing;
-      return hover;
+      return null;
     }
 
     function draw(now = performance.now()) {
@@ -451,7 +451,7 @@
 
       const active = activeRing();
 
-      // Soft halo under the ring being turned
+      // Soft halo under the ring being turned (drag or scramble)
       if (active) {
         const g = GROUPS[active.gi];
         ctx.beginPath();
@@ -504,7 +504,6 @@
     let history       = [];     // [{gi, ri, shift}]
     let scrambleTimer = null;
     let scrambleRing  = null;
-    let hover         = null;
 
     let timerStart = null, elapsedMs = 0, timerId = null;
 
@@ -597,7 +596,6 @@
 
     function finish() {
       phase = 'solved';
-      hover = null;
       stopTimer();
       updateUI();
       setHint('');
@@ -682,9 +680,7 @@
       e.preventDefault();
       const pos = toLogical(e);
       if (!drag) {
-        const c = e.touches ? null : ringCandidates(pos)[0] ?? null;
-        if (c?.gi !== hover?.gi || c?.ri !== hover?.ri) { hover = c; scheduleRedraw(); }
-        canvas.style.cursor = c ? 'grab' : 'default';
+        canvas.style.cursor = ringCandidates(pos).length ? 'grab' : 'default';
         return;
       }
 
@@ -735,7 +731,6 @@
 
     canvas.addEventListener('mousedown',   onStart);
     canvas.addEventListener('mousemove',   onMove);
-    canvas.addEventListener('mouseleave',  () => { if (hover) { hover = null; scheduleRedraw(); } });
     window.addEventListener('mouseup',     onEnd);
     canvas.addEventListener('touchstart',  onStart, { passive: false });
     canvas.addEventListener('touchmove',   onMove,  { passive: false });
