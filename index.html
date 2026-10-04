@@ -2,58 +2,268 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Rubik Circle</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#EFECE6">
+  <title>Rosette</title>
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
   <style>
+    :root {
+      --bg:    #EFECE6;
+      --ink:   #1C1B1A;
+      --muted: #6B6760;
+      --line:  #D9D4CB;
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overscroll-behavior: none; }
     body {
-      background: #f0ede8;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Geist', system-ui, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button { font-family: inherit; color: inherit; }
+
+    .screen {
+      max-width: 430px;
+      height: 100svh;
+      margin: 0 auto;
+      padding: calc(env(safe-area-inset-top) + 24px) 20px calc(env(safe-area-inset-bottom) + 34px);
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100svh;
-      font-family: system-ui, sans-serif;
     }
-    canvas { touch-action: none; display: block; }
+    .screen[hidden] { display: none; }
+
+    .serif   { font-family: 'Instrument Serif', serif; font-weight: 400; }
+    .mono    { font-family: 'Geist Mono', monospace; font-weight: 500; }
+    .label   { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+
+    .icon-btn {
+      width: 44px; height: 44px;
+      border: none; border-radius: 22px;
+      background: transparent;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+    }
+    .cta {
+      height: 56px;
+      border: none; border-radius: 28px;
+      background: var(--ink); color: var(--bg);
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      font-size: 17px; font-weight: 500;
+      cursor: pointer;
+    }
+
+    /* Home */
+    .home-hero {
+      flex-grow: 1;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 10px;
+    }
+    .home-hero h1 { margin-top: 12px; font-size: 72px; line-height: 1; letter-spacing: -0.01em; }
+    .home-hero p  { font-size: 17px; color: var(--muted); }
+
+    /* Game */
+    header {
+      height: 44px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .spacer { width: 44px; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .stats > div {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 14px 0;
+    }
+    .stats > div + div { border-left: 1px solid var(--line); }
+    .stats .value { font-size: 28px; line-height: 1; }
+    .board-wrap {
+      flex-grow: 1; min-height: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    canvas { display: block; touch-action: none; }
+    .hint {
+      margin-bottom: 16px;
+      min-height: 1.4em;
+      text-align: center;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    nav {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+    nav button {
+      height: 64px;
+      border: none; border-radius: 16px;
+      background: transparent;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    nav button:disabled { opacity: 0.35; cursor: default; }
+
+    /* Solved */
+    .solved-title {
+      margin-top: 12px;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .solved-title h1 { font-size: 60px; line-height: 1; }
+    .solved-title p  { font-size: 16px; color: var(--muted); }
+    .solved-stats .value { font-size: 22px; }
   </style>
 </head>
 <body>
-  <canvas id="c"></canvas>
+  <!-- Home -->
+  <main id="home" class="screen">
+    <div class="home-hero">
+      <div id="logo"></div>
+      <h1 class="serif">Rosette</h1>
+      <p>A pocket cube, unfolded.</p>
+    </div>
+    <button id="play" class="cta">Play<span class="puzzle-no mono" style="font-size: 13px; color: #B8B2A7"></span></button>
+  </main>
+
+  <!-- Game -->
+  <main id="game" class="screen" hidden>
+    <header>
+      <button id="game-home" class="icon-btn" aria-label="Home">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg>
+      </button>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 3px">
+        <span class="serif" style="font-size: 24px; line-height: 1">Rosette</span>
+        <span class="puzzle-no label"></span>
+      </div>
+      <span class="spacer"></span>
+    </header>
+
+    <div class="stats" style="margin-top: 28px">
+      <div><span class="label">Moves</span><span id="moves" class="value mono">0</span></div>
+      <div><span class="label">Time</span><span id="time" class="value mono">00:00</span></div>
+    </div>
+
+    <div id="board-wrap" class="board-wrap">
+      <canvas id="c" aria-label="Puzzle board"></canvas>
+    </div>
+
+    <p id="hint" class="hint"></p>
+
+    <nav>
+      <button id="undo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"></path><path d="M4 9h10a6 6 0 0 1 0 12h-3"></path></svg>
+        Undo
+      </button>
+      <button id="restart">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path></svg>
+        Restart
+      </button>
+    </nav>
+  </main>
+
+  <!-- Solved -->
+  <main id="solved" class="screen" hidden>
+    <header>
+      <button id="solved-home" class="icon-btn" aria-label="Close">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      </button>
+      <span class="puzzle-no label"></span>
+      <span class="spacer"></span>
+    </header>
+
+    <div class="solved-title">
+      <h1 class="serif">Solved<span style="font-style: italic">.</span></h1>
+      <p>All six colours back together.</p>
+    </div>
+
+    <div id="solved-board" class="board-wrap"></div>
+
+    <div class="stats solved-stats">
+      <div><span id="solved-moves" class="value mono">0</span><span class="label">Moves</span></div>
+      <div><span id="solved-time" class="value mono">0:00</span><span class="label">Time</span></div>
+    </div>
+
+    <button id="share" class="cta" style="margin-top: 24px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5"></path><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"></path></svg>
+      <span id="share-label">Share result</span>
+    </button>
+  </main>
 
   <script>
   (() => {
-    const canvas = document.getElementById('c');
-    const ctx    = canvas.getContext('2d');
-    const dpr    = window.devicePixelRatio || 1;
+    const $ = id => document.getElementById(id);
 
-    const L = 600;
-    let displaySize, drawScale;
-
-    function resize() {
-      displaySize = Math.min(window.innerWidth, window.innerHeight, L);
-      drawScale   = (displaySize / L) * dpr;
-      canvas.style.width  = displaySize + 'px';
-      canvas.style.height = displaySize + 'px';
-      canvas.width  = Math.round(displaySize * dpr);
-      canvas.height = Math.round(displaySize * dpr);
-      scheduleRedraw();
-    }
-
-    // ── Geometry ─────────────────────────────────────────────────────────────
-    const SIDE    = 150;
+    // ── Geometry (logical units = the board's SVG viewBox) ──────────────────
+    const VB      = { x: 100, y: 137, w: 1028, h: 990 };
+    const SIDE    = 300;
     const triH    = SIDE * Math.sqrt(3) / 2;
-    const R_IN    = 134;
-    const R_OUT   = 175;
-    const RADII   = [R_IN, R_OUT];
-    const HIT_TOL = 25;
-    const DOT_R   = 9;
+    const RADII   = [267, 349];
+    const HIT_TOL = 60;
+    const DOT_R   = 22;
     const ANIM_MS = 180; // all dots in a step take this long, regardless of arc length
 
+    const SCRAMBLE_MOVES = 12;
+    const SCRAMBLE_MS    = 250; // between scramble turns
+    const SCRAMBLE_START = 500; // solved board shown before the first turn
+    const SOLVED_DELAY   = 700;
+
+    // ── Daily puzzle ──────────────────────────────────────────────────────────
+    // Everyone gets the same scramble on the same local calendar date: the date
+    // seeds a deterministic PRNG that picks the scramble's turns. Bump
+    // SEED_VERSION only when deliberately changing every future scramble.
+    const SEED_VERSION = 'v1';
+    const LAUNCH_DATE  = new Date(2026, 8, 24); // puzzle No. 1 (local midnight)
+
+    // Today's local date, or ?date=YYYY-MM-DD to preview another day
+    function puzzleDate() {
+      const q = new URLSearchParams(location.search).get('date');
+      const m = q && /^(\d{4})-(\d{2})-(\d{2})$/.exec(q);
+      if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+      const now = new Date();
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    }
+
+    function dateKey(d) {
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    // Round, not floor: a day across a DST change is 23 or 25 hours long
+    function puzzleNumber(d) {
+      return Math.round((d - LAUNCH_DATE) / 86400000) + 1;
+    }
+
+    // FNV-1a: string → 32-bit seed
+    function hashString(str) {
+      let h = 0x811c9dc5;
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h  = Math.imul(h, 0x01000193);
+      }
+      return h >>> 0;
+    }
+
+    // mulberry32: seeded PRNG returning floats in [0, 1)
+    function mulberry32(a) {
+      return () => {
+        a |= 0; a = a + 0x6D2B79F5 | 0;
+        let t = Math.imul(a ^ a >>> 15, 1 | a);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
     const GROUPS = [
-      { x: 300,          y: 300 - triH * 2 / 3 },
-      { x: 300 - SIDE/2, y: 300 + triH / 3     },
-      { x: 300 + SIDE/2, y: 300 + triH / 3     },
+      { x: 613,            y: 502          },
+      { x: 613 - SIDE / 2, y: 502 + triH   },
+      { x: 613 + SIDE / 2, y: 502 + triH   },
     ];
 
     // ── Circle intersections ──────────────────────────────────────────────────
@@ -99,9 +309,31 @@
         ringSlots[gi][ri].sort((a, b) => a.angle - b.angle);
 
     // ── Dot colours (6 colors, 4 dots each) ──────────────────────────────────
-    const COLORS   = ['#ffffff','#ffd500','#0051a2','#ff5800','#009b48','#c41e3a'];
-    let slotColors = slots.map(s => COLORS[s.colorIdx]);
-    let displayColors = [...slotColors]; // committed state + any in-flight shift
+    const INK      = '#1C1B1A';
+    const COLORS   = ['#FFFFFF','#F4D348','#2350A0','#3F9B55','#EB6A2C','#B9323F'];
+    const SOLVED   = slots.map(s => COLORS[s.colorIdx]);
+    const CLUSTERS = COLORS.map((_, c) => slots.flatMap((s, si) => s.colorIdx === c ? [si] : []));
+
+    let slotColors    = [...SOLVED];
+    let displayColors = [...SOLVED]; // committed state + any in-flight shift
+
+    function isSolved(colors = slotColors) {
+      return CLUSTERS.every(cl => cl.every(si => colors[si] === colors[cl[0]]));
+    }
+
+    // ── Static SVG board (home logo, solved screen) ──────────────────────────
+    function boardSVG(colors, { width, ring, dotR, dotStroke, label }) {
+      const height = Math.round(width * VB.h / VB.w);
+      const rings = GROUPS.flatMap(g => RADII.map(r =>
+        `<circle cx="${g.x}" cy="${g.y}" r="${r}"></circle>`)).join('');
+      const dots = slots.map((s, si) =>
+        `<circle cx="${s.x.toFixed(1)}" cy="${s.y.toFixed(1)}" r="${dotR}" fill="${colors[si]}"></circle>`).join('');
+      return `<svg width="${width}" height="${height}" viewBox="${VB.x} ${VB.y} ${VB.w} ${VB.h}" role="img" aria-label="${label}">` +
+        `<g fill="none" stroke="${INK}" stroke-width="${ring}">${rings}</g>` +
+        `<g stroke="${INK}" stroke-width="${dotStroke}">${dots}</g></svg>`;
+    }
+
+    $('logo').innerHTML = boardSVG(SOLVED, { width: 260, ring: 9, dotR: 24, dotStroke: 5, label: 'Rosette logo' });
 
     // ── Angle helpers ─────────────────────────────────────────────────────────
     function normDelta(a) {
@@ -142,26 +374,48 @@
       return out;
     }
 
+    // ── Canvas sizing ─────────────────────────────────────────────────────────
+    const canvas = $('c');
+    const ctx    = canvas.getContext('2d');
+    const wrap   = $('board-wrap');
+
+    function resize() {
+      const w = wrap.clientWidth, h = wrap.clientHeight;
+      if (!w || !h) return;
+      const dpr   = window.devicePixelRatio || 1;
+      const cssW  = Math.min(w, h * VB.w / VB.h, 520);
+      const cssH  = cssW * VB.h / VB.w;
+      canvas.style.width  = cssW + 'px';
+      canvas.style.height = cssH + 'px';
+      canvas.width  = Math.round(cssW * dpr);
+      canvas.height = Math.round(cssH * dpr);
+      scheduleRedraw();
+    }
+    new ResizeObserver(resize).observe(wrap);
+
     // ── Hit testing ───────────────────────────────────────────────────────────
     function toLogical(e) {
       const rect = canvas.getBoundingClientRect();
       const s    = e.touches ? e.touches[0] : e;
-      return { x: (s.clientX - rect.left) * L / displaySize,
-               y: (s.clientY - rect.top)  * L / displaySize };
+      return { x: VB.x + (s.clientX - rect.left) * VB.w / rect.width,
+               y: VB.y + (s.clientY - rect.top)  * VB.h / rect.height };
     }
 
     function angleTo(g, pos) { return Math.atan2(pos.y - g.y, pos.x - g.x); }
 
-    function hitTest(pos) {
-      let best = null, bd = HIT_TOL;
+    // Nearest ring of each group within HIT_TOL — up to 3 candidates at intersections
+    function ringCandidates(pos) {
+      const out = [];
       for (let gi = 0; gi < GROUPS.length; gi++) {
         const g = GROUPS[gi], dist = Math.hypot(pos.x - g.x, pos.y - g.y);
+        let best = null, bd = HIT_TOL;
         for (let ri = 0; ri < RADII.length; ri++) {
           const d = Math.abs(dist - RADII[ri]);
-          if (d < bd) { bd = d; best = { gi, ri }; }
+          if (d < bd) { bd = d; best = { gi, ri, d }; }
         }
+        if (best) out.push(best);
       }
-      return best;
+      return out.sort((a, b) => a.d - b.d);
     }
 
     // ── Animation ─────────────────────────────────────────────────────────────
@@ -200,6 +454,16 @@
 
     function easeInOut(t) { return t * t * (3 - 2 * t); }
 
+    // Turn a ring by `shift` slots outside of a drag (scramble, undo)
+    function turn(gi, ri, shift) {
+      const n = ringSlots[gi][ri].length;
+      shift = ((shift % n) + n) % n;
+      startAnimation(gi, ri, shift);
+      slotColors    = applyShift(gi, ri, shift, slotColors);
+      displayColors = [...slotColors];
+      scheduleRedraw();
+    }
+
     // ── Render loop ───────────────────────────────────────────────────────────
     let rafId = null;
 
@@ -215,25 +479,28 @@
 
     function drawDot(x, y, color) {
       ctx.beginPath();
-      ctx.arc(x, y, DOT_R * drawScale, 0, Math.PI * 2);
+      ctx.arc(x, y, DOT_R, 0, Math.PI * 2);
       ctx.fillStyle   = color;
       ctx.fill();
-      ctx.strokeStyle = '#111';
-      ctx.lineWidth   = 1.5 * drawScale;
+      ctx.strokeStyle = INK;
+      ctx.lineWidth   = 4;
       ctx.stroke();
     }
 
     function draw(now = performance.now()) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const s = canvas.width / VB.w;
+      ctx.setTransform(s, 0, 0, s, -VB.x * s, -VB.y * s);
 
       // Rings
       for (let gi = 0; gi < GROUPS.length; gi++) {
         const g = GROUPS[gi];
         for (let ri = 0; ri < RADII.length; ri++) {
           ctx.beginPath();
-          ctx.arc(g.x * drawScale, g.y * drawScale, RADII[ri] * drawScale, 0, Math.PI * 2);
-          ctx.strokeStyle = '#1a1a1a';
-          ctx.lineWidth   = 3.5 * drawScale;
+          ctx.arc(g.x, g.y, RADII[ri], 0, Math.PI * 2);
+          ctx.strokeStyle = INK;
+          ctx.lineWidth   = 7;
           ctx.stroke();
         }
       }
@@ -244,8 +511,7 @@
       // Static dots (at their fixed world positions)
       for (let si = 0; si < slots.length; si++) {
         if (animSlots.has(si)) continue;
-        const s = slots[si];
-        drawDot(s.x * drawScale, s.y * drawScale, displayColors[si]);
+        drawDot(slots[si].x, slots[si].y, displayColors[si]);
       }
 
       // Animated dots (arc-interpolated along their ring)
@@ -257,32 +523,215 @@
 
         for (const dot of anim.dots) {
           const angle = dot.fromAngle + t * dot.delta;
-          drawDot(
-            (g.x + r * Math.cos(angle)) * drawScale,
-            (g.y + r * Math.sin(angle)) * drawScale,
-            dot.color
-          );
+          drawDot(g.x + r * Math.cos(angle), g.y + r * Math.sin(angle), dot.color);
         }
 
         if (elapsed >= anim.duration) anim = null;
       }
     }
 
+    // ── Game state ────────────────────────────────────────────────────────────
+    let phase         = 'idle'; // 'scrambling' | 'play' | 'solved'
+    let startColors   = null;   // position right after the scramble (for Restart)
+    let history       = [];     // [{gi, ri, shift}]
+    let scrambleTimer = null;
+    let puzzle        = null;   // { date, no, moves }
+
+    let timerStart = null, elapsedMs = 0, timerId = null;
+
+    function fmtTime(ms) {
+      const t = Math.floor(ms / 1000);
+      return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0');
+    }
+    function currentMs() {
+      return timerStart === null ? elapsedMs : performance.now() - timerStart;
+    }
+    function startTimer() {
+      timerStart = performance.now();
+      timerId    = setInterval(updateUI, 250);
+    }
+    function stopTimer() {
+      if (timerStart !== null) elapsedMs = performance.now() - timerStart;
+      timerStart = null;
+      clearInterval(timerId);
+    }
+    function resetTimer() {
+      stopTimer();
+      elapsedMs = 0;
+    }
+
+    function updateUI() {
+      $('moves').textContent = history.length;
+      $('time').textContent  = fmtTime(currentMs());
+      $('undo').disabled     = phase !== 'play' || history.length === 0;
+      $('restart').disabled  = phase !== 'play' || history.length === 0;
+    }
+
+    function setHint(text) { $('hint').textContent = text; }
+
+    function showScreen(id) {
+      for (const s of ['home', 'game', 'solved']) $(s).hidden = s !== id;
+    }
+
+    function newGame() {
+      clearTimeout(scrambleTimer);
+      puzzle        = { date: puzzleDate() };
+      puzzle.no     = puzzleNumber(puzzle.date);
+      puzzle.moves  = dailyScramble(dateKey(puzzle.date));
+      showPuzzleNo();
+      anim          = null;
+      slotColors    = [...SOLVED];
+      displayColors = [...SOLVED];
+      history       = [];
+      resetTimer();
+      showScreen('game');
+      resize();
+      scramble();
+    }
+
+    // The day's SCRAMBLE_MOVES turns, drawn from a PRNG seeded by the date.
+    // A sequence that partly undoes itself is rejected and redrawn from the
+    // same PRNG, so the result is still identical for everyone.
+    function dailyScramble(key) {
+      const rng = mulberry32(hashString(`rosette-${SEED_VERSION}-${key}`));
+      for (;;) {
+        const seq = [];
+        while (seq.length < SCRAMBLE_MOVES) {
+          const r  = Math.floor(rng() * 6);
+          const gi = r >> 1, ri = r & 1;
+          const shift = rng() < 0.5 ? 2 : -2;
+          const p = seq[seq.length - 1], pp = seq[seq.length - 2];
+          // A group's inner and outer rings share no dots, so they commute:
+          // never the same ring twice in a row, and never three turns in a row
+          // in one group (A B A could be rewritten shorter).
+          if (p && p.gi === gi && (p.ri === ri || (pp && pp.gi === gi))) continue;
+          seq.push({ gi, ri, shift });
+        }
+        if (neverRevisits(seq)) return seq;
+      }
+    }
+
+    // False if any turn returns the board to a position it already had
+    // (including solved), i.e. part of the sequence cancelled out.
+    function neverRevisits(seq) {
+      let colors = [...SOLVED];
+      const seen = new Set([colors.join()]);
+      for (const { gi, ri, shift } of seq) {
+        colors = applyShift(gi, ri, (shift + 8) % 8, colors);
+        const k = colors.join();
+        if (seen.has(k)) return false;
+        seen.add(k);
+      }
+      return true;
+    }
+
+    // Show the solved board, then play the day's scramble one turn every
+    // SCRAMBLE_MS, so the player can watch it get mixed up.
+    function scramble() {
+      phase = 'scrambling';
+      updateUI();
+      setHint('Watch closely…');
+      let count = 0;
+
+      const step = () => {
+        const { gi, ri, shift } = puzzle.moves[count];
+        turn(gi, ri, shift);
+        count++;
+        setHint(`Scrambling… ${count} / ${SCRAMBLE_MOVES}`);
+
+        if (count < SCRAMBLE_MOVES) {
+          scrambleTimer = setTimeout(step, SCRAMBLE_MS);
+        } else {
+          scrambleTimer = setTimeout(() => {
+            phase        = 'play';
+            startColors  = [...slotColors];
+            setHint('Drag along any ring to turn it.');
+            updateUI();
+            scheduleRedraw();
+          }, ANIM_MS);
+        }
+      };
+      scrambleTimer = setTimeout(step, SCRAMBLE_START);
+    }
+
+    function recordMove(gi, ri, shift) {
+      if (timerStart === null) startTimer(); // clock starts on the first move
+      history.push({ gi, ri, shift });
+      updateUI();
+      if (isSolved()) finish();
+    }
+
+    function finish() {
+      phase = 'solved';
+      stopTimer();
+      updateUI();
+      setHint('');
+      setTimeout(showSolved, ANIM_MS + SOLVED_DELAY);
+    }
+
+    function showSolved() {
+      $('solved-board').innerHTML = boardSVG(slotColors, { width: 300, ring: 7, dotR: 22, dotStroke: 4, label: 'Puzzle board, solved' });
+      $('solved-moves').textContent = history.length;
+      $('solved-time').textContent  = fmtTime(elapsedMs).replace(/^0/, '');
+      $('share-label').textContent  = 'Share result';
+      showScreen('solved');
+    }
+
+    function undo() {
+      if (phase !== 'play' || !history.length) return;
+      const m = history.pop();
+      turn(m.gi, m.ri, -m.shift);
+      updateUI();
+    }
+
+    function restart() {
+      if (phase !== 'play' || !history.length) return;
+      anim          = null;
+      slotColors    = [...startColors];
+      displayColors = [...startColors];
+      history       = [];
+      resetTimer();
+      updateUI();
+      scheduleRedraw();
+    }
+
+    function goHome() {
+      clearTimeout(scrambleTimer);
+      stopTimer();
+      phase = 'idle';
+      drag  = null;
+      showPuzzleNo();
+      showScreen('home');
+    }
+
+    // On Home, recompute from the date in case it rolled over since the last game
+    function showPuzzleNo() {
+      const no = phase === 'idle' || !puzzle ? puzzleNumber(puzzleDate()) : puzzle.no;
+      for (const el of document.querySelectorAll('.puzzle-no')) el.textContent = `No. ${no}`;
+    }
+
+    async function share() {
+      const text = `I solved Rosette No. ${puzzle.no} in ${history.length} moves (${fmtTime(elapsedMs)}).`;
+      try {
+        if (navigator.share) {
+          await navigator.share({ text, url: location.href });
+        } else {
+          await navigator.clipboard.writeText(`${text} ${location.href}`);
+          $('share-label').textContent = 'Copied to clipboard';
+        }
+      } catch (_) { /* share sheet dismissed */ }
+    }
+
     // ── Interaction ───────────────────────────────────────────────────────────
     let drag = null;
-    // { gi, ri, lastAngle, totalDelta, startColors, lastShift }
+    // { gi, ri, candidates, startPos, lastAngle, totalDelta, startColors, lastShift, hasMoved }
 
     function onStart(e) {
+      if (phase !== 'play') return;
       e.preventDefault();
       const pos = toLogical(e);
-      // Collect every ring within HIT_TOL — may be >1 at intersection dots
-      const candidates = [];
-      for (let gi = 0; gi < GROUPS.length; gi++) {
-        const g = GROUPS[gi], dist = Math.hypot(pos.x - g.x, pos.y - g.y);
-        for (let ri = 0; ri < RADII.length; ri++) {
-          if (Math.abs(dist - RADII[ri]) < HIT_TOL) candidates.push({ gi, ri });
-        }
-      }
+      // Every ring within HIT_TOL — may be >1 at intersection dots
+      const candidates = ringCandidates(pos);
       if (!candidates.length) return;
       anim = null;
       if (candidates.length === 1) {
@@ -301,17 +750,18 @@
     }
 
     function onMove(e) {
+      if (phase !== 'play') return;
       e.preventDefault();
       const pos = toLogical(e);
       if (!drag) {
-        canvas.style.cursor = hitTest(pos) ? 'grab' : 'default';
+        canvas.style.cursor = ringCandidates(pos).length ? 'grab' : 'default';
         return;
       }
 
       // Resolve ambiguous ring using initial drag direction
       if (drag.gi === null) {
         const dx = pos.x - drag.startPos.x, dy = pos.y - drag.startPos.y;
-        if (Math.hypot(dx, dy) < 4) { scheduleRedraw(); return; } // wait for clearer intent
+        if (Math.hypot(dx, dy) < 8) { scheduleRedraw(); return; } // wait for clearer intent
         const dragAngle = Math.atan2(dy, dx);
         let best = drag.candidates[0], bestScore = -Infinity;
         for (const c of drag.candidates) {
@@ -345,9 +795,11 @@
 
     function onEnd() {
       if (!drag) return;
-      slotColors          = [...displayColors];
+      const { gi, ri, hasMoved, lastShift } = drag;
       drag                = null;
       canvas.style.cursor = 'default';
+      slotColors          = [...displayColors];
+      if (hasMoved) recordMove(gi, ri, lastShift);
       scheduleRedraw();
     }
 
@@ -359,8 +811,13 @@
     canvas.addEventListener('touchend',    onEnd);
     canvas.addEventListener('touchcancel', onEnd);
 
-    window.addEventListener('resize', resize);
-    resize();
+    showPuzzleNo();
+    $('play').addEventListener('click',        newGame);
+    $('game-home').addEventListener('click',   goHome);
+    $('solved-home').addEventListener('click', goHome);
+    $('undo').addEventListener('click',        undo);
+    $('restart').addEventListener('click',     restart);
+    $('share').addEventListener('click',       share);
   })();
   </script>
 </body>
