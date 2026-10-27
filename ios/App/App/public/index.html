@@ -10,6 +10,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+  <script>
+    !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug getPageViewId".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+    posthog.init('phc_wyjkTLiRTkAvDKoA5ZKU5iKrRTJhCBLw627qnALM8AAb', {
+      api_host: 'https://us.i.posthog.com',
+      person_profiles: 'always',
+      autocapture: false,
+      capture_pageview: false,
+    });
+  </script>
   <style>
     :root {
       --bg:    #EFECE6;
@@ -65,6 +74,20 @@
     }
     .home-hero h1 { margin-top: 12px; font-size: 72px; line-height: 1; letter-spacing: -0.01em; }
     .home-hero p  { font-size: 17px; color: var(--muted); }
+    .difficulty {
+      display: flex; gap: 8px; justify-content: center;
+      padding: 24px 0;
+    }
+    .difficulty button {
+      height: 36px; padding: 0 16px;
+      border: 1.5px solid var(--ink); border-radius: 18px;
+      background: transparent; color: var(--ink);
+      font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: background 0.15s, color 0.15s;
+    }
+    .difficulty button.active {
+      background: var(--ink); color: var(--bg);
+    }
 
     /* Game */
     header {
@@ -121,18 +144,59 @@
     .solved-title h1 { font-size: 60px; line-height: 1; }
     .solved-title p  { font-size: 16px; color: var(--muted); }
     .solved-stats .value { font-size: 22px; }
+
+    /* Info modal */
+    .home-top { display: flex; justify-content: flex-end; }
+    #info-modal {
+      position: fixed; inset: 0; z-index: 100;
+      background: var(--bg);
+      padding: calc(env(safe-area-inset-top) + 24px) 28px calc(env(safe-area-inset-bottom) + 34px);
+      display: flex; flex-direction: column;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    #info-modal[hidden] { display: none; }
+    .info-close { display: flex; justify-content: flex-end; }
+    .info-body { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; gap: 28px; max-width: 380px; margin: 0 auto; }
+    .info-body h2 { font-size: 36px; line-height: 1.1; }
+    .info-body p  { font-size: 16px; line-height: 1.6; color: var(--muted); }
   </style>
 </head>
 <body>
   <!-- Home -->
   <main id="home" class="screen">
+    <div class="home-top">
+      <button id="info-open" class="icon-btn" aria-label="How to play">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><circle cx="12" cy="8" r="0.5" fill="currentColor"></circle></svg>
+      </button>
+    </div>
     <div class="home-hero">
       <div id="logo"></div>
       <h1 class="serif">Rosette</h1>
       <p>A pocket cube, unfolded.</p>
     </div>
+    <div class="difficulty">
+      <button data-diff="easy">Easy</button>
+      <button data-diff="medium">Medium</button>
+      <button data-diff="hard">Hard</button>
+    </div>
     <button id="play" class="cta">Play<span class="puzzle-no mono" style="font-size: 13px; color: #B8B2A7"></span></button>
   </main>
+
+  <!-- Info modal -->
+  <div id="info-modal" hidden>
+    <div class="info-close">
+      <button id="info-close" class="icon-btn" aria-label="Close">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      </button>
+    </div>
+    <div class="info-body">
+      <h2 class="serif">How to play</h2>
+      <p>Rosette is a daily puzzle inspired by the Rubik's Cube. Six groups of four coloured dots sit at the intersections of six interlocking rings.</p>
+      <p>Drag along any ring to rotate its dots. Each move shifts a ring by one step, scrambling colours across neighbouring rings.</p>
+      <p>Your goal: return every colour to its original cluster. A new puzzle appears each day — same scramble for everyone.</p>
+    </div>
+  </div>
 
   <!-- Game -->
   <main id="game" class="screen" hidden>
@@ -211,7 +275,10 @@
     const DOT_R   = 22;
     const ANIM_MS = 180; // all dots in a step take this long, regardless of arc length
 
-    const SCRAMBLE_MOVES = 12;
+    const DIFF_MOVES     = { easy: 6, medium: 9, hard: 12 };
+    let   difficulty     = localStorage.getItem('difficulty') || 'easy';
+    function scrambleMoves() { return DIFF_MOVES[difficulty]; }
+
     const SCRAMBLE_MS    = 250; // between scramble turns
     const SCRAMBLE_START = 500; // solved board shown before the first turn
     const SOLVED_DELAY   = 700;
@@ -478,7 +545,22 @@
       if (anim && now < anim.startTime + anim.duration) scheduleRedraw();
     }
 
-    function drawDot(x, y, color) {
+    const PULSE_MS = 300;
+    let pulses = new Map(); // si → startTime
+    let prevSolved = new Set(); // slots that were solved last frame
+
+    function drawDot(x, y, color, solved, pulseT) {
+      if (solved && phase === 'play') {
+        const glowAlpha = pulseT >= 0 ? 0.5 + 0.5 * (1 - pulseT) : 0.5;
+        ctx.save();
+        ctx.shadowColor = `rgba(28, 27, 26, ${glowAlpha})`;
+        ctx.shadowBlur  = 18;
+        ctx.beginPath();
+        ctx.arc(x, y, DOT_R, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.restore();
+      }
       ctx.beginPath();
       ctx.arc(x, y, DOT_R, 0, Math.PI * 2);
       ctx.fillStyle   = color;
@@ -486,6 +568,13 @@
       ctx.strokeStyle = INK;
       ctx.lineWidth   = 4;
       ctx.stroke();
+      if (solved && phase === 'play') {
+        const scale = pulseT >= 0 ? 1 + 0.8 * (1 - pulseT) : 1;
+        ctx.beginPath();
+        ctx.arc(x, y, DOT_R * 0.38 * scale, 0, Math.PI * 2);
+        ctx.fillStyle = INK;
+        ctx.fill();
+      }
     }
 
     function draw(now = performance.now()) {
@@ -509,10 +598,31 @@
       // Skip static draw for any slot whose dot is currently mid-animation
       const animSlots = anim?.slotIndices ?? new Set();
 
+      // Detect newly solved dots and start pulses
+      const curSolved = new Set();
+      for (let si = 0; si < slots.length; si++) {
+        if (!animSlots.has(si) && displayColors[si] === SOLVED[si]) curSolved.add(si);
+      }
+      if (phase === 'play') {
+        for (const si of curSolved) {
+          if (!prevSolved.has(si) && !pulses.has(si)) pulses.set(si, now);
+        }
+      }
+      prevSolved = curSolved;
+
+      // Clean up expired pulses
+      let hasPulse = false;
+      for (const [si, t0] of pulses) {
+        if (now - t0 >= PULSE_MS) pulses.delete(si);
+        else hasPulse = true;
+      }
+
       // Static dots (at their fixed world positions)
       for (let si = 0; si < slots.length; si++) {
         if (animSlots.has(si)) continue;
-        drawDot(slots[si].x, slots[si].y, displayColors[si]);
+        const solved = curSolved.has(si);
+        const pt = pulses.has(si) ? (now - pulses.get(si)) / PULSE_MS : -1;
+        drawDot(slots[si].x, slots[si].y, displayColors[si], solved, pt);
       }
 
       // Animated dots (arc-interpolated along their ring)
@@ -524,11 +634,12 @@
 
         for (const dot of anim.dots) {
           const angle = dot.fromAngle + t * dot.delta;
-          drawDot(g.x + r * Math.cos(angle), g.y + r * Math.sin(angle), dot.color);
+          drawDot(g.x + r * Math.cos(angle), g.y + r * Math.sin(angle), dot.color, false, -1);
         }
 
-        if (elapsed >= anim.duration) anim = null;
+        if (elapsed >= anim.duration) { anim = null; scheduleRedraw(); }
       }
+      if (hasPulse) scheduleRedraw();
     }
 
     // ── Game state ────────────────────────────────────────────────────────────
@@ -575,6 +686,7 @@
     }
 
     function newGame() {
+      posthog.capture('game_start', { puzzle_number: puzzleNumber(puzzleDate()), difficulty });
       clearTimeout(scrambleTimer);
       puzzle        = { date: puzzleDate() };
       puzzle.no     = puzzleNumber(puzzle.date);
@@ -584,6 +696,7 @@
       slotColors    = [...SOLVED];
       displayColors = [...SOLVED];
       history       = [];
+      pulses.clear(); prevSolved = new Set();
       resetTimer();
       showScreen('game');
       resize();
@@ -594,10 +707,11 @@
     // A sequence that partly undoes itself is rejected and redrawn from the
     // same PRNG, so the result is still identical for everyone.
     function dailyScramble(key) {
-      const rng = mulberry32(hashString(`rosette-${SEED_VERSION}-${key}`));
+      const n = scrambleMoves();
+      const rng = mulberry32(hashString(`rosette-${SEED_VERSION}-${key}-${difficulty}`));
       for (;;) {
         const seq = [];
-        while (seq.length < SCRAMBLE_MOVES) {
+        while (seq.length < n) {
           const r  = Math.floor(rng() * 6);
           const gi = r >> 1, ri = r & 1;
           const shift = rng() < 0.5 ? 2 : -2;
@@ -638,9 +752,9 @@
         const { gi, ri, shift } = puzzle.moves[count];
         turn(gi, ri, shift);
         count++;
-        setHint(`Scrambling\u2026 ${count} / ${SCRAMBLE_MOVES}`);
+        setHint(`Scrambling\u2026 ${count} / ${scrambleMoves()}`);
 
-        if (count < SCRAMBLE_MOVES) {
+        if (count < scrambleMoves()) {
           scrambleTimer = setTimeout(step, SCRAMBLE_MS);
         } else {
           scrambleTimer = setTimeout(() => {
@@ -663,6 +777,7 @@
     }
 
     function finish() {
+      posthog.capture('game_solve', { puzzle_number: puzzle.no, difficulty, move_count: history.length, elapsed_time: Math.round(currentMs()) });
       phase = 'solved';
       stopTimer();
       updateUI();
@@ -687,16 +802,21 @@
 
     function restart() {
       if (phase !== 'play' || !history.length) return;
+      posthog.capture('game_restart', { puzzle_number: puzzle.no, difficulty, move_count: history.length, elapsed_time: Math.round(currentMs()) });
       anim          = null;
       slotColors    = [...startColors];
       displayColors = [...startColors];
       history       = [];
+      pulses.clear(); prevSolved = new Set();
       resetTimer();
       updateUI();
       scheduleRedraw();
     }
 
     function goHome() {
+      if (puzzle && (phase === 'play' || phase === 'scrambling')) {
+        posthog.capture('game_back', { puzzle_number: puzzle.no, difficulty, move_count: history.length, elapsed_time: Math.round(currentMs()) });
+      }
       clearTimeout(scrambleTimer);
       stopTimer();
       phase = 'idle';
@@ -712,12 +832,12 @@
     }
 
     async function share() {
-      const text = `I solved Rosette No. ${puzzle.no} in ${history.length} moves (${fmtTime(elapsedMs)}).`;
+      const text = `I solved Rosette No. ${puzzle.no} (${difficulty}) in ${history.length} moves (${fmtTime(elapsedMs)}).`;
       try {
         if (navigator.share) {
-          await navigator.share({ text, url: location.href });
+          await navigator.share({ text });
         } else {
-          await navigator.clipboard.writeText(`${text} ${location.href}`);
+          await navigator.clipboard.writeText(text);
           $('share-label').textContent = 'Copied to clipboard';
         }
       } catch (_) { /* share sheet dismissed */ }
@@ -812,8 +932,24 @@
     canvas.addEventListener('touchend',    onEnd);
     canvas.addEventListener('touchcancel', onEnd);
 
+    // ── Difficulty selector ──────────────────────────────────────────────────
+    function updateDiffUI() {
+      for (const btn of document.querySelectorAll('.difficulty button'))
+        btn.classList.toggle('active', btn.dataset.diff === difficulty);
+    }
+    for (const btn of document.querySelectorAll('.difficulty button')) {
+      btn.addEventListener('click', () => {
+        difficulty = btn.dataset.diff;
+        localStorage.setItem('difficulty', difficulty);
+        updateDiffUI();
+      });
+    }
+    updateDiffUI();
+
     showPuzzleNo();
     $('play').addEventListener('click',        newGame);
+    $('info-open').addEventListener('click',  () => $('info-modal').hidden = false);
+    $('info-close').addEventListener('click', () => $('info-modal').hidden = true);
     $('game-home').addEventListener('click',   goHome);
     $('solved-home').addEventListener('click', goHome);
     $('undo').addEventListener('click',        undo);
